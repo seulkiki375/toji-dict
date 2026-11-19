@@ -487,6 +487,132 @@
   }
   .toast.show { opacity: 1; }
   .hidden { display: none !important; }
+
+  /* === 단어 추가 === */
+  .add-btn {
+    padding: 10px 11px;
+    border-radius: 10px;
+    border: 1px solid var(--gold);
+    background: rgba(182, 143, 76, 0.20);
+    color: #FAF4E8;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .add-btn:active { background: rgba(182, 143, 76, 0.38); }
+  .new-badge {
+    display: inline-block;
+    background: #E3F0E6;
+    color: #2F6B45;
+    border: 1px solid #A9CBB4;
+    font-size: 10.5px;
+    font-weight: 700;
+    padding: 1px 6px;
+    border-radius: 5px;
+    margin-left: 6px;
+    vertical-align: middle;
+    letter-spacing: -0.2px;
+    font-family: -apple-system, BlinkMacSystemFont, "Noto Sans KR", sans-serif;
+  }
+  .edit-btn, .del-btn {
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    padding: 4px 10px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    color: var(--muted);
+  }
+  .edit-btn { color: var(--accent); border-color: #D2C0A5; background: #FAF4E8; }
+  .del-btn { color: #9B3B27; border-color: #E0B8AE; background: #FDF3F0; }
+
+  /* === 단어 추가/수정 모달 === */
+  .word-modal {
+    background: rgba(20, 15, 11, 0.72);
+    padding: 16px;
+    display: none;
+  }
+  .word-modal.open { display: flex; align-items: flex-start; justify-content: center; }
+  .word-modal-box {
+    width: 100%;
+    max-width: 460px;
+    margin: auto;
+    background: var(--card);
+    border: 1px solid #D9C7AA;
+    border-radius: 14px;
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.32);
+    overflow: hidden;
+  }
+  .word-modal-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border);
+    background: linear-gradient(180deg, #FAF4E8 0%, #F1E7D5 100%);
+  }
+  .word-modal-head h2 { margin: 0; font-size: 16.5px; color: var(--accent); }
+  .word-modal-close {
+    background: transparent;
+    border: none;
+    font-size: 18px;
+    line-height: 1;
+    color: var(--muted);
+    cursor: pointer;
+    padding: 2px 4px;
+  }
+  .word-form { padding: 14px 16px 16px; }
+  .word-form .field { margin-bottom: 11px; }
+  .word-form label {
+    display: block;
+    font-size: 12.5px;
+    font-weight: 700;
+    color: var(--accent);
+    margin-bottom: 5px;
+  }
+  .word-form label .req { color: #B8502F; }
+  .word-form label .opt { color: var(--muted); font-weight: 500; }
+  .word-form input, .word-form textarea, .word-form select {
+    width: 100%;
+    padding: 9px 11px;
+    border-radius: 9px;
+    border: 1px solid var(--border);
+    background: #FFFDF8;
+    color: var(--ink);
+    font-size: 15px;
+    font-family: inherit;
+    outline: none;
+  }
+  .word-form textarea { resize: vertical; min-height: 56px; line-height: 1.5; }
+  .word-form input:focus, .word-form textarea:focus, .word-form select:focus { border-color: var(--gold); }
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .form-hint { font-size: 11.5px; color: var(--muted); margin-top: 4px; min-height: 15px; line-height: 1.35; }
+  .form-error {
+    display: none;
+    background: #FDF0EC;
+    border: 1px solid #E2B0A2;
+    color: #9B3B27;
+    border-radius: 9px;
+    padding: 9px 12px;
+    font-size: 12.5px;
+    font-weight: 600;
+    line-height: 1.45;
+    margin-bottom: 10px;
+  }
+  .form-error.show { display: block; }
+  .form-actions { display: flex; gap: 8px; }
+  .form-actions button {
+    flex: 1;
+    padding: 11px;
+    border-radius: 10px;
+    font-size: 14.5px;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  .btn-ghost { background: #F1E8D8; border: 1px solid var(--border); color: var(--muted); }
+  .btn-primary { background: var(--gold); border: 1px solid var(--gold); color: #261E18; }
 </style>
 </head>
 <body>
@@ -509,6 +635,7 @@
       <button id="clearBtn" class="clear-btn" type="button" aria-label="지우기">×</button>
     </div>
     <button id="searchBtn" class="search-btn" type="button">검색</button>
+    <button id="addWordBtn" class="add-btn" type="button" aria-label="단어 추가">＋ 추가</button>
   </div>
   <div class="search-wrap hidden" id="charSearchWrap">
     <div class="input-box">
@@ -528,6 +655,7 @@
     <button class="chip" data-part="3부">3부 (9~12권)</button>
     <button class="chip" data-part="4부">4부 (13~16권)</button>
     <button class="chip" data-part="5부">5부 (17~21권)</button>
+    <button class="chip" data-part="신규">＋ 내가 추가</button>
   </div>
   <main>
     <div id="heroCard" class="hero-card">
@@ -592,6 +720,65 @@
 <div id="imgModal" class="modal">
   <button id="modalClose" class="modal-close" type="button">닫기 ✕</button>
   <img id="modalImg" src="" alt="인물관계도 확대">
+</div>
+
+<div id="wordModal" class="modal word-modal" role="dialog" aria-modal="true" aria-labelledby="wordModalTitle">
+  <div class="word-modal-box">
+    <div class="word-modal-head">
+      <h2 id="wordModalTitle" class="serif">단어 추가</h2>
+      <button id="wordModalClose" class="word-modal-close" type="button" aria-label="닫기">✕</button>
+    </div>
+    <div class="word-form">
+      <div class="field">
+        <label for="fWord">단어 <span class="req">*</span></label>
+        <input id="fWord" type="text" autocomplete="off" placeholder="예: 봇장" />
+        <div class="form-hint" id="fWordHint"></div>
+      </div>
+      <div class="field">
+        <label for="fMeaning">뜻 <span class="req">*</span></label>
+        <textarea id="fMeaning" rows="2" placeholder="예: 짚으로 만든 쌀자루."></textarea>
+      </div>
+      <div class="field form-grid">
+        <div>
+          <label for="fPart">몇 부 <span class="req">*</span></label>
+          <select id="fPart">
+            <option value="">선택</option>
+            <option value="1부">1부</option>
+            <option value="2부">2부</option>
+            <option value="3부">3부</option>
+            <option value="4부">4부</option>
+            <option value="5부">5부</option>
+          </select>
+        </div>
+        <div>
+          <label for="fEpisode">몇 편 <span class="req">*</span></label>
+          <select id="fEpisode">
+            <option value="">선택</option>
+            <option value="1">1편</option>
+            <option value="2">2편</option>
+            <option value="3">3편</option>
+            <option value="4">4편</option>
+            <option value="5">5편</option>
+          </select>
+        </div>
+      </div>
+      <div class="field form-grid">
+        <div>
+          <label for="fVolume">몇 권 <span class="opt">(선택)</span></label>
+          <input id="fVolume" type="text" inputmode="numeric" placeholder="예: 3" />
+        </div>
+        <div>
+          <label for="fChapter">몇 장 <span class="opt">(선택)</span></label>
+          <input id="fChapter" type="text" inputmode="numeric" placeholder="예: 2" />
+        </div>
+      </div>
+      <div id="formError" class="form-error"></div>
+      <div class="form-actions">
+        <button id="wordCancelBtn" class="btn-ghost" type="button">취소</button>
+        <button id="wordSaveBtn" class="btn-primary" type="button">저장</button>
+      </div>
+    </div>
+  </div>
 </div>
 
 <div id="toast" class="toast">복사되었습니다</div>
@@ -705,7 +892,12 @@ function fallbackCopy(txt) {
 let activeTab = 'vocab';
 const totalCountEl = document.getElementById('totalCount');
 function updateHeaderCount() {
-  if (activeTab === 'vocab') totalCountEl.textContent = `수록 ${VOCAB.length.toLocaleString()}어휘`;
+  if (activeTab === 'vocab') {
+    const extra = USER_VOCAB.length;
+    totalCountEl.textContent = extra > 0
+      ? `수록 ${VOCAB_ALL.length.toLocaleString()}어휘 (내가 추가 ${extra})`
+      : `수록 ${VOCAB_ALL.length.toLocaleString()}어휘`;
+  }
   else if (activeTab === 'char') totalCountEl.textContent = `인물 ${CHARS.length}건 (1~3부)`;
   else totalCountEl.textContent = `관계도 ${CHARTS.length}장 (1~3부)`;
 }
@@ -727,16 +919,51 @@ document.querySelectorAll('.nav-tab').forEach(btn => {
 });
 
 // === TAB 1: VOCAB ===
-const INDEXED = VOCAB.map((item, idx) => {
-  const norm = normalizeWord(item.w);
-  return {
-    idx, item, norm,
-    variants: splitWordVariants(item.w),
-    jamo: decomposeJamo(norm),
-    cho: extractChoseong(norm),
-    meaningLower: (item.m || '').toLowerCase()
-  };
-});
+// === 내가 추가한 단어 (localStorage) ===
+const USER_VOCAB_KEY = 'toji_user_vocab';
+function loadUserVocab() {
+  try {
+    const raw = window.localStorage.getItem(USER_VOCAB_KEY);
+    if (!raw) return [];
+    const arr = JSON.parse(raw);
+    if (!Array.isArray(arr)) return [];
+    return arr.filter(x => x && typeof x === 'object' && x.w && x.m).map(x => ({
+      w: String(x.w),
+      h: x.h ? String(x.h) : '',
+      m: String(x.m),
+      p: x.p ? String(x.p) : '',
+      v: x.v ? String(x.v) : '',
+      c: x.c ? String(x.c) : '',
+      s: x.s ? String(x.s) : (x.p ? String(x.p) : ''),
+      u: true,
+      id: x.id ? String(x.id) : 'u' + Math.random().toString(36).slice(2, 9),
+      addedAt: x.addedAt || ''
+    }));
+  } catch (e) { return []; }
+}
+function saveUserVocab(list) {
+  try {
+    window.localStorage.setItem(USER_VOCAB_KEY, JSON.stringify(list || USER_VOCAB));
+    return true;
+  } catch (e) { return false; }
+}
+let USER_VOCAB = loadUserVocab();
+let VOCAB_ALL = [];
+let INDEXED = [];
+function reindex() {
+  VOCAB_ALL = USER_VOCAB.concat(VOCAB);
+  INDEXED = VOCAB_ALL.map((item, idx) => {
+    const norm = normalizeWord(item.w);
+    return {
+      idx, item, norm,
+      variants: splitWordVariants(item.w),
+      jamo: decomposeJamo(norm),
+      cho: extractChoseong(norm),
+      meaningLower: (item.m || '').toLowerCase()
+    };
+  });
+}
+reindex();
 let currentPart = '전체';
 let currentLimit = 60;
 const searchInput = document.getElementById('searchInput');
@@ -783,17 +1010,25 @@ function renderCards(list, limit, exactIdxSet = null) {
     const card = document.createElement('div');
     card.className = isExact ? 'card exact-card' : 'card';
     const hanjaHtml = it.h ? `<span class="hanja">[${escapeHtml(it.h)}]</span>` : '';
+    const newBadge = it.u ? `<span class="new-badge">신규 추가</span>` : '';
     const bookRef = [it.p, it.v].filter(Boolean).join(' ');
     const chapterMeta = [it.s, it.c ? `<${it.c}>` : ''].filter(Boolean).join(' · ');
+    const userActions = it.u
+      ? `<button class="edit-btn" type="button">수정</button><button class="del-btn" type="button">삭제</button>`
+      : '';
     card.innerHTML = `
       <div class="card-head">
-        <div class="word-title serif">${escapeHtml(it.w)}${hanjaHtml}</div>
+        <div class="word-title serif">${escapeHtml(it.w)}${newBadge}${hanjaHtml}</div>
         <span class="book-badge">${escapeHtml(bookRef)}</span>
       </div>
       <div class="chapter-meta">${escapeHtml(chapterMeta)}</div>
       <div class="meaning">${escapeHtml(it.m || '(원문 설명 없음)')}</div>
-      <div class="card-actions"><button class="copy-btn" type="button">복사</button></div>
+      <div class="card-actions">${userActions}<button class="copy-btn" type="button">복사</button></div>
     `;
+    if (it.u) {
+      card.querySelector('.edit-btn').onclick = () => openWordModal(it.id);
+      card.querySelector('.del-btn').onclick = () => deleteWord(it.id);
+    }
     card.querySelector('.copy-btn').onclick = () => {
       const txt = `[${bookRef}] ${it.w}${it.h ? ' [' + it.h + ']' : ''} : ${it.m}`;
       if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(txt).then(() => showToast('복사되었습니다')).catch(() => fallbackCopy(txt));
@@ -838,10 +1073,20 @@ function findSimilar(qRaw, pool) {
 function runSearch(rawQuery, recordHistory = false) {
   const q = rawQuery.trim();
   bannerArea.innerHTML = '';
-  const pool = currentPart === '전체' ? INDEXED : INDEXED.filter(r => r.item.p === currentPart);
+  const pool = currentPart === '전체'
+    ? INDEXED
+    : (currentPart === '신규' ? INDEXED.filter(r => r.item.u) : INDEXED.filter(r => r.item.p === currentPart));
   if (!q) {
-    heroCard.style.display = 'block';
-    statusBar.textContent = `${currentPart} 어휘 ${pool.length.toLocaleString()}개`;
+    heroCard.style.display = currentPart === '신규' ? 'none' : 'block';
+    if (currentPart === '신규') {
+      statusBar.textContent = `내가 추가한 단어 ${pool.length}개`;
+      if (!pool.length) {
+        resultsEl.innerHTML = `<div class="empty-box">아직 추가한 단어가 없습니다.<br>'＋ 추가' 버튼으로 단어를 더해 보세요.</div>`;
+        return;
+      }
+    } else {
+      statusBar.textContent = `${currentPart} 어휘 ${pool.length.toLocaleString()}개`;
+    }
     renderCards(pool, currentLimit);
     return;
   }
@@ -1120,6 +1365,164 @@ document.getElementById('modalClose').addEventListener('click', () => imgModal.c
 imgModal.addEventListener('click', e => {
   if (e.target === imgModal) imgModal.classList.remove('open');
 });
+
+// === 단어 추가 / 수정 ===
+const wordModal = document.getElementById('wordModal');
+const wordModalTitle = document.getElementById('wordModalTitle');
+const fWord = document.getElementById('fWord');
+const fMeaning = document.getElementById('fMeaning');
+const fPart = document.getElementById('fPart');
+const fEpisode = document.getElementById('fEpisode');
+const fVolume = document.getElementById('fVolume');
+const fChapter = document.getElementById('fChapter');
+const formError = document.getElementById('formError');
+const fWordHint = document.getElementById('fWordHint');
+let editingId = null;
+
+function showFormError(msg) {
+  formError.textContent = msg;
+  formError.classList.add('show');
+}
+function clearFormError() {
+  formError.textContent = '';
+  formError.classList.remove('show');
+}
+
+function openWordModal(id) {
+  clearFormError();
+  fWordHint.textContent = '';
+  editingId = id || null;
+  if (editingId) {
+    const it = USER_VOCAB.find(x => x.id === editingId);
+    if (!it) { editingId = null; return; }
+    wordModalTitle.textContent = '단어 수정';
+    fWord.value = it.w;
+    fMeaning.value = it.m;
+    fPart.value = it.p || '';
+    const ep = /(\d+)\s*편/.exec(it.s || '');
+    fEpisode.value = ep ? String(parseInt(ep[1], 10)) : '';
+    if (fEpisode.value && !Array.prototype.some.call(fEpisode.options, o => o.value === fEpisode.value)) fEpisode.value = '';
+    const vol = /(\d+)\s*권/.exec(it.v || '');
+    fVolume.value = vol ? String(parseInt(vol[1], 10)) : '';
+    const cha = /(\d+)\s*장/.exec(it.c || '');
+    fChapter.value = cha ? String(parseInt(cha[1], 10)) : '';
+  } else {
+    wordModalTitle.textContent = '단어 추가';
+    fWord.value = '';
+    fMeaning.value = '';
+    fPart.value = '';
+    fEpisode.value = '';
+    fVolume.value = '';
+    fChapter.value = '';
+  }
+  wordModal.classList.add('open');
+  document.body.style.overflow = 'hidden';
+  setTimeout(() => { if (!editingId) fWord.focus(); }, 60);
+}
+
+function closeWordModal() {
+  wordModal.classList.remove('open');
+  document.body.style.overflow = '';
+  editingId = null;
+}
+
+function collectWord() {
+  const w = fWord.value.trim().replace(/\s+/g, ' ');
+  const m = fMeaning.value.trim();
+  const p = fPart.value;
+  const ep = fEpisode.value;
+  const vol = fVolume.value.trim();
+  const cha = fChapter.value.trim();
+  const missing = [];
+  if (!w) missing.push('단어');
+  if (!m) missing.push('뜻');
+  if (!p) missing.push('몇 부');
+  if (!ep) missing.push('몇 편');
+  if (missing.length) {
+    showFormError(`${missing.join(', ')} 항목을 입력해 주세요.`);
+    if (!w) fWord.focus();
+    else if (!m) fMeaning.focus();
+    else if (!p) fPart.focus();
+    else fEpisode.focus();
+    return null;
+  }
+  if (!/^\d+$/.test(vol) && vol) {
+    showFormError('몇 권은 숫자만 입력해 주세요. (예: 3)');
+    fVolume.focus();
+    return null;
+  }
+  if (!/^\d+$/.test(cha) && cha) {
+    showFormError('몇 장은 숫자만 입력해 주세요. (예: 2)');
+    fChapter.focus();
+    return null;
+  }
+  return {
+    w: w, h: '', m: m, p: p,
+    v: vol ? `${parseInt(vol, 10)}권` : '',
+    c: cha ? `${parseInt(cha, 10)}장` : '',
+    s: `${p} ${parseInt(ep, 10)}편`,
+    u: true
+  };
+}
+
+function submitWord() {
+  clearFormError();
+  const data = collectWord();
+  if (!data) return;
+  let msg = '단어를 추가했습니다';
+  if (editingId) {
+    const i = USER_VOCAB.findIndex(x => x.id === editingId);
+    if (i < 0) { showFormError('수정할 단어를 찾지 못했습니다. 창을 닫고 다시 시도해 주세요.'); return; }
+    USER_VOCAB[i] = Object.assign({}, USER_VOCAB[i], data);
+    msg = '단어를 수정했습니다';
+  } else {
+    data.id = 'u' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+    data.addedAt = new Date().toISOString();
+    USER_VOCAB = [data].concat(USER_VOCAB);
+  }
+  const stored = saveUserVocab(USER_VOCAB);
+  closeWordModal();
+  reindex();
+  updateHeaderCount();
+  searchInput.value = data.w;
+  clearBtn.style.display = 'block';
+  currentLimit = 60;
+  runSearch(data.w, true);
+  showToast(stored ? msg : msg + ' (이 브라우저에는 저장 안 됨)');
+}
+
+function deleteWord(id) {
+  const it = USER_VOCAB.find(x => x.id === id);
+  if (!it) return;
+  if (!window.confirm(`'${it.w}' 단어를 삭제할까요?`)) return;
+  USER_VOCAB = USER_VOCAB.filter(x => x.id !== id);
+  saveUserVocab(USER_VOCAB);
+  reindex();
+  updateHeaderCount();
+  currentLimit = 60;
+  runSearch(searchInput.value, false);
+  showToast('삭제했습니다');
+}
+
+document.getElementById('addWordBtn').addEventListener('click', () => openWordModal(null));
+document.getElementById('wordModalClose').addEventListener('click', closeWordModal);
+document.getElementById('wordCancelBtn').addEventListener('click', closeWordModal);
+document.getElementById('wordSaveBtn').addEventListener('click', submitWord);
+wordModal.addEventListener('click', e => { if (e.target === wordModal) closeWordModal(); });
+[fWord, fVolume, fChapter].forEach(el => el.addEventListener('keydown', e => {
+  if (e.key === 'Enter') { e.preventDefault(); submitWord(); }
+}));
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && wordModal.classList.contains('open')) closeWordModal();
+});
+fWord.addEventListener('input', () => {
+  clearFormError();
+  const q = normalizeWord(fWord.value);
+  if (!q) { fWordHint.textContent = ''; return; }
+  const found = VOCAB_ALL.some(x => normalizeWord(x.w) === q || splitWordVariants(x.w).includes(q));
+  fWordHint.textContent = found ? '이미 사전에 있는 단어입니다. 추가하면 검색 결과에 함께 표시됩니다.' : '';
+});
+fMeaning.addEventListener('input', clearFormError);
 
 // Init
 updateHeaderCount();
