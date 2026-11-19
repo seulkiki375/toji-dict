@@ -218,6 +218,28 @@
     color: var(--muted);
     margin: 6px 0 10px;
   }
+  /* === 공용 단어장 연결 상태 === */
+  .sync-state {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 11.5px;
+    color: var(--muted);
+    margin: -4px 0 10px;
+    letter-spacing: -0.2px;
+  }
+  .sync-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #B9AE9C;
+    flex: 0 0 auto;
+  }
+  .sync-state.ok .sync-dot { background: #4E9A6A; }
+  .sync-state.loading .sync-dot { background: var(--gold); }
+  .sync-state.error .sync-dot { background: #C0653F; }
+  .sync-state.error { color: #A2542F; }
+  .btn-primary[disabled] { opacity: 0.6; cursor: default; }
   .similar-banner {
     background: var(--warn-bg);
     border: 1px solid var(--warn-border);
@@ -655,7 +677,7 @@
     <button class="chip" data-part="3부">3부 (9~12권)</button>
     <button class="chip" data-part="4부">4부 (13~16권)</button>
     <button class="chip" data-part="5부">5부 (17~21권)</button>
-    <button class="chip" data-part="신규">＋ 내가 추가</button>
+    <button class="chip" data-part="신규">＋ 모임 추가</button>
   </div>
   <main>
     <div id="heroCard" class="hero-card">
@@ -673,6 +695,7 @@
       <div class="section-label">최근 검색</div>
       <div id="recentChips" class="recent-chips"></div>
     </div>
+    <div id="syncState" class="sync-state loading"></div>
     <div id="statusBar" class="status-bar"></div>
     <div id="bannerArea"></div>
     <div id="results"></div>
@@ -895,7 +918,7 @@ function updateHeaderCount() {
   if (activeTab === 'vocab') {
     const extra = USER_VOCAB.length;
     totalCountEl.textContent = extra > 0
-      ? `수록 ${VOCAB_ALL.length.toLocaleString()}어휘 (내가 추가 ${extra})`
+      ? `수록 ${VOCAB_ALL.length.toLocaleString()}어휘 (모임 추가 ${extra})`
       : `수록 ${VOCAB_ALL.length.toLocaleString()}어휘`;
   }
   else if (activeTab === 'char') totalCountEl.textContent = `인물 ${CHARS.length}건 (1~3부)`;
@@ -919,8 +942,10 @@ document.querySelectorAll('.nav-tab').forEach(btn => {
 });
 
 // === TAB 1: VOCAB ===
-// === 내가 추가한 단어 (localStorage) ===
+// === 모임 공용 단어장 (Google Sheets + Apps Script 웹 앱) ===
+const API_URL = 'https://script.google.com/macros/s/AKfycby4GaG8Es0MoPw5zkFG4OWAfWN8XhTvmBWr3ERpZXGg2g2v0m-7TGPAGno60o4-xaN_5A/exec';
 const USER_VOCAB_KEY = 'toji_user_vocab';
+const MIGRATE_KEY = 'toji_shared_v1';
 function loadUserVocab() {
   try {
     const raw = window.localStorage.getItem(USER_VOCAB_KEY);
@@ -946,6 +971,77 @@ function saveUserVocab(list) {
     window.localStorage.setItem(USER_VOCAB_KEY, JSON.stringify(list || USER_VOCAB));
     return true;
   } catch (e) { return false; }
+}
+
+function mapServerItem(s) {
+  s = s || {};
+  return {
+    w: String(s.word || ''), h: '', m: String(s.meaning || ''), p: String(s.part || ''),
+    v: String(s.volume || ''), c: String(s.chapter || ''), s: String(s.section || ''),
+    u: true, id: String(s.id || ''), addedAt: s.createdAt || '', updatedAt: s.updatedAt || ''
+  };
+}
+function vocabSignature(it) {
+  return [normalizeWord(it.w || ''), String(it.m || '').trim(), it.p || '', it.s || ''].join('|');
+}
+function setSyncState(state, extra) {
+  const el = document.getElementById('syncState');
+  if (!el) return;
+  const label = state === 'ok'
+    ? (extra ? `모임 공용 단어장 연결됨 · ${extra}` : '모임 공용 단어장 연결됨')
+    : state === 'error'
+      ? '공용 단어장에 연결하지 못했습니다 · 이 기기에 저장된 목록만 보입니다'
+      : '공용 단어장 불러오는 중…';
+  el.className = 'sync-state ' + state;
+  el.innerHTML = `<span class="sync-dot"></span><span>${escapeHtml(label)}</span>`;
+}
+async function apiGet() {
+  const res = await fetch(API_URL + '?t=' + Date.now(), { method: 'GET', cache: 'no-store', redirect: 'follow' });
+  const data = await res.json();
+  if (!data || data.ok !== true) throw new Error((data && data.message) || 'bad_response');
+  return (data.words || []).map(mapServerItem).filter(x => x.id && x.w && x.m);
+}
+async function apiPost(payload) {
+  const res = await fetch(API_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify(payload),
+    redirect: 'follow'
+  });
+  const data = await res.json();
+  if (!data || data.ok !== true) throw new Error((data && data.message) || 'bad_response');
+  return data;
+}
+async function fetchSharedWords() {
+  setSyncState('loading');
+  try {
+    let list = await apiGet();
+    let migrated = false;
+    try { migrated = !!window.localStorage.getItem(MIGRATE_KEY); } catch (e) {}
+    if (!migrated) {
+      const seen = {};
+      list.forEach(x => { seen[vocabSignature(x)] = true; });
+      const pending = USER_VOCAB.filter(it => !seen[vocabSignature(it)]);
+      for (const it of pending) {
+        try {
+          const r = await apiPost({ action: 'add', id: it.id, word: it.w, meaning: it.m, part: it.p, section: it.s, volume: it.v, chapter: it.c });
+          list = [mapServerItem(r.item || {})].concat(list);
+        } catch (e) {}
+      }
+      try { window.localStorage.setItem(MIGRATE_KEY, '1'); } catch (e) {}
+    }
+    USER_VOCAB = list;
+    saveUserVocab(USER_VOCAB);
+    reindex();
+    updateHeaderCount();
+    currentLimit = 60;
+    setSyncState('ok', `모임 추가 ${USER_VOCAB.length}개`);
+    if (activeTab === 'vocab') runSearch(searchInput.value, false);
+  } catch (e) {
+    setSyncState('error');
+    reindex();
+    updateHeaderCount();
+  }
 }
 let USER_VOCAB = loadUserVocab();
 let VOCAB_ALL = [];
@@ -1079,9 +1175,9 @@ function runSearch(rawQuery, recordHistory = false) {
   if (!q) {
     heroCard.style.display = currentPart === '신규' ? 'none' : 'block';
     if (currentPart === '신규') {
-      statusBar.textContent = `내가 추가한 단어 ${pool.length}개`;
+      statusBar.textContent = `모임에서 추가한 단어 ${pool.length}개`;
       if (!pool.length) {
-        resultsEl.innerHTML = `<div class="empty-box">아직 추가한 단어가 없습니다.<br>'＋ 추가' 버튼으로 단어를 더해 보세요.</div>`;
+        resultsEl.innerHTML = `<div class="empty-box">아직 모임에서 추가한 단어가 없습니다.<br>'＋ 추가' 버튼으로 단어를 더해 보세요.</div>`;
         return;
       }
     } else {
@@ -1465,43 +1561,74 @@ function collectWord() {
   };
 }
 
-function submitWord() {
+let savingWord = false;
+function setSaving(on) {
+  savingWord = on;
+  const btn = document.getElementById('wordSaveBtn');
+  if (!btn) return;
+  btn.disabled = on;
+  btn.textContent = on ? '저장 중…' : '저장';
+}
+
+async function submitWord() {
+  if (savingWord) return;
   clearFormError();
   const data = collectWord();
   if (!data) return;
-  let msg = '단어를 추가했습니다';
-  if (editingId) {
-    const i = USER_VOCAB.findIndex(x => x.id === editingId);
-    if (i < 0) { showFormError('수정할 단어를 찾지 못했습니다. 창을 닫고 다시 시도해 주세요.'); return; }
-    USER_VOCAB[i] = Object.assign({}, USER_VOCAB[i], data);
-    msg = '단어를 수정했습니다';
-  } else {
-    data.id = 'u' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
-    data.addedAt = new Date().toISOString();
-    USER_VOCAB = [data].concat(USER_VOCAB);
+  const isEdit = !!editingId;
+  const payload = {
+    action: isEdit ? 'update' : 'add',
+    id: isEdit ? editingId : ('u' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6)),
+    word: data.w, meaning: data.m, part: data.p, section: data.s, volume: data.v, chapter: data.c
+  };
+  setSaving(true);
+  try {
+    const res = await apiPost(payload);
+    const item = mapServerItem(res.item || {});
+    if (!item.id) item.id = payload.id;
+    if (!item.w) item.w = data.w;
+    if (isEdit) {
+      const i = USER_VOCAB.findIndex(x => x.id === editingId);
+      if (i >= 0) USER_VOCAB[i] = Object.assign({}, USER_VOCAB[i], item);
+      else USER_VOCAB = [item].concat(USER_VOCAB);
+    } else {
+      USER_VOCAB = [item].concat(USER_VOCAB);
+    }
+    saveUserVocab(USER_VOCAB);
+    setSyncState('ok', `모임 추가 ${USER_VOCAB.length}개`);
+    closeWordModal();
+    reindex();
+    updateHeaderCount();
+    searchInput.value = data.w;
+    clearBtn.style.display = 'block';
+    currentLimit = 60;
+    runSearch(data.w, true);
+    showToast(isEdit ? '단어를 수정했습니다 (모임 공용)' : '단어를 추가했습니다 (모임 공용)');
+  } catch (e) {
+    showFormError('공용 단어장에 저장하지 못했습니다. 인터넷 연결을 확인한 뒤 다시 시도해 주세요. (이 경우 저장되지 않습니다)');
+  } finally {
+    setSaving(false);
   }
-  const stored = saveUserVocab(USER_VOCAB);
-  closeWordModal();
-  reindex();
-  updateHeaderCount();
-  searchInput.value = data.w;
-  clearBtn.style.display = 'block';
-  currentLimit = 60;
-  runSearch(data.w, true);
-  showToast(stored ? msg : msg + ' (이 브라우저에는 저장 안 됨)');
 }
 
-function deleteWord(id) {
+async function deleteWord(id) {
   const it = USER_VOCAB.find(x => x.id === id);
   if (!it) return;
-  if (!window.confirm(`'${it.w}' 단어를 삭제할까요?`)) return;
-  USER_VOCAB = USER_VOCAB.filter(x => x.id !== id);
-  saveUserVocab(USER_VOCAB);
-  reindex();
-  updateHeaderCount();
-  currentLimit = 60;
-  runSearch(searchInput.value, false);
-  showToast('삭제했습니다');
+  if (!window.confirm(`'${it.w}' 단어를 모임 공용 단어장에서 삭제할까요?\n삭제하면 모임원 모두의 화면에서 사라집니다.`)) return;
+  showToast('삭제 중…');
+  try {
+    await apiPost({ action: 'delete', id: id });
+    USER_VOCAB = USER_VOCAB.filter(x => x.id !== id);
+    saveUserVocab(USER_VOCAB);
+    setSyncState('ok', `모임 추가 ${USER_VOCAB.length}개`);
+    reindex();
+    updateHeaderCount();
+    currentLimit = 60;
+    runSearch(searchInput.value, false);
+    showToast('삭제했습니다 (모임 공용)');
+  } catch (e) {
+    showToast('삭제하지 못했습니다. 잠시 후 다시 시도해 주세요.');
+  }
 }
 
 document.getElementById('addWordBtn').addEventListener('click', () => openWordModal(null));
@@ -1529,6 +1656,8 @@ updateHeaderCount();
 renderRecent();
 runSearch('', false);
 runCharSearch('');
+setSyncState('loading');
+fetchSharedWords();
 </script>
 </body>
 </html>
